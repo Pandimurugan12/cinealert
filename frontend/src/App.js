@@ -2,19 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 
 const API = process.env.REACT_APP_API_URL || '';
-
 const CITIES_BMS = [
-  { name: 'Chennai', code: 'CHEN' },
-  { name: 'Mumbai', code: 'MUMB' },
-  { name: 'Delhi', code: 'NDLS' },
-  { name: 'Bangalore', code: 'BANG' },
-  { name: 'Hyderabad', code: 'HYD' },
-  { name: 'Kolkata', code: 'KOLK' },
-  { name: 'Pune', code: 'PUNE' },
-  { name: 'Ahmedabad', code: 'AHMD' },
+  { name: 'Chennai', code: 'CHEN' }, { name: 'Mumbai', code: 'MUMB' },
+  { name: 'Delhi', code: 'NDLS' }, { name: 'Bangalore', code: 'BANG' },
+  { name: 'Hyderabad', code: 'HYD' }, { name: 'Kolkata', code: 'KOLK' },
+  { name: 'Pune', code: 'PUNE' }, { name: 'Ahmedabad', code: 'AHMD' },
   { name: 'Kochi', code: 'KOCH' },
 ];
-
 const SEAT_CATEGORIES = ['Any', 'Gold', 'Silver', 'Platinum', 'Recliner', 'Premium', 'IMAX', '4DX'];
 
 function formatDate(d) {
@@ -24,13 +18,10 @@ function formatDate(d) {
 
 function StatusDot({ status, active }) {
   const color = !active ? '#888' : status === 'notified' ? '#22c55e' : '#f59e0b';
-  return (
-    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: color, marginRight: 6, boxShadow: active && status !== 'notified' ? `0 0 0 3px ${color}22` : 'none' }} />
-  );
+  return <span style={{ display:'inline-block', width:8, height:8, borderRadius:'50%', background:color, marginRight:6 }} />;
 }
 
-function TrackerCard({ tracker, onToggle, onDelete, onTest }) {
-  const [deleting, setDeleting] = useState(false);
+function TrackerCard({ tracker, onToggle, onDelete, onTest, onEdit }) {
   return (
     <div className={`tracker-card ${!tracker.active ? 'inactive' : ''}`}>
       <div className="tracker-header">
@@ -40,10 +31,9 @@ function TrackerCard({ tracker, onToggle, onDelete, onTest }) {
         </div>
         <div className="tracker-actions">
           <button className="btn-icon" title="Test Telegram" onClick={() => onTest(tracker.id)}>↗</button>
-          <button className="btn-icon toggle" onClick={() => onToggle(tracker.id)}>
-            {tracker.active ? '⏸' : '▶'}
-          </button>
-          <button className="btn-icon danger" onClick={() => { setDeleting(true); setTimeout(() => onDelete(tracker.id), 300); }}>×</button>
+          <button className="btn-icon" title="Edit" onClick={() => onEdit(tracker)}>✎</button>
+          <button className="btn-icon toggle" onClick={() => onToggle(tracker.id)}>{tracker.active ? '⏸' : '▶'}</button>
+          <button className="btn-icon danger" onClick={() => onDelete(tracker.id)}>×</button>
         </div>
       </div>
       <div className="tracker-meta">
@@ -51,7 +41,9 @@ function TrackerCard({ tracker, onToggle, onDelete, onTest }) {
         <span className="meta-chip">📅 {tracker.showDate}</span>
         {tracker.showTime && <span className="meta-chip">⏰ {tracker.showTime}</span>}
         {tracker.seatCategory && tracker.seatCategory !== 'Any' && <span className="meta-chip">💺 {tracker.seatCategory}</span>}
-        <span className={`meta-chip platform ${tracker.platform}`}>{tracker.platform === 'both' ? 'BMS + District' : tracker.platform === 'bookmyshow' ? 'BookMyShow' : 'District'}</span>
+        <span className={`meta-chip platform ${tracker.platform}`}>
+          {tracker.platform === 'both' ? 'BMS + District' : tracker.platform === 'bookmyshow' ? 'BookMyShow' : 'District'}
+        </span>
       </div>
       <div className="tracker-footer">
         <span className="status-text">
@@ -64,21 +56,13 @@ function TrackerCard({ tracker, onToggle, onDelete, onTest }) {
   );
 }
 
-function AddTrackerModal({ onClose, onAdd }) {
+function TrackerModal({ onClose, onSave, editData }) {
+  const isEdit = !!editData;
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    movieName: '',
-    city: 'Chennai',
-    cityCode: 'CHEN',
-    theaterName: '',
-    showDate: '',
-    showTime: '',
-    seatCategory: 'Any',
-    platform: 'both',
-    districtUrl: '',
-    bmsEventCode: '',
-    telegramToken: '',
-    telegramChatId: '',
+  const [form, setForm] = useState(editData || {
+    movieName: '', city: 'Chennai', cityCode: 'CHEN', theaterName: '',
+    showDate: '', showTime: '', seatCategory: 'Any', platform: 'both',
+    districtUrl: '', bmsEventCode: '', telegramToken: '', telegramChatId: '',
   });
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
@@ -86,25 +70,16 @@ function AddTrackerModal({ onClose, onAdd }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const testTelegram = async () => {
-    setTesting(true);
-    setTestResult(null);
+    setTesting(true); setTestResult(null);
     try {
       const res = await fetch(`${API}/api/test-telegram`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: form.telegramToken, chatId: form.telegramChatId }),
       });
       const data = await res.json();
       setTestResult(data.success ? 'success' : 'error');
-    } catch {
-      setTestResult('error');
-    }
+    } catch { setTestResult('error'); }
     setTesting(false);
-  };
-
-  const handleSubmit = () => {
-    onAdd(form);
-    onClose();
   };
 
   const isStep1Valid = form.movieName && form.showDate;
@@ -118,6 +93,7 @@ function AddTrackerModal({ onClose, onAdd }) {
             <span className={`step ${step >= 1 ? 'active' : ''}`}>1 Movie</span>
             <span className="step-sep">→</span>
             <span className={`step ${step >= 2 ? 'active' : ''}`}>2 Notify</span>
+            {isEdit && <span className="edit-badge">Editing</span>}
           </div>
           <button className="btn-icon" onClick={onClose}>×</button>
         </div>
@@ -131,10 +107,7 @@ function AddTrackerModal({ onClose, onAdd }) {
             <div className="field-row">
               <div className="field">
                 <label>City</label>
-                <select value={form.city} onChange={e => {
-                  const c = CITIES_BMS.find(c => c.name === e.target.value);
-                  set('city', c.name); set('cityCode', c.code);
-                }}>
+                <select value={form.city} onChange={e => { const c = CITIES_BMS.find(c => c.name === e.target.value); set('city', c.name); set('cityCode', c.code); }}>
                   {CITIES_BMS.map(c => <option key={c.code}>{c.name}</option>)}
                 </select>
               </div>
@@ -177,7 +150,7 @@ function AddTrackerModal({ onClose, onAdd }) {
             )}
             {(form.platform === 'bookmyshow' || form.platform === 'both') && (
               <div className="field">
-                <label>BMS Event Code <span className="optional">(e.g. ET00451760 from URL)</span></label>
+                <label>BMS Event Code <span className="optional">(e.g. ET00451760 from BMS URL)</span></label>
                 <input placeholder="ET00451760" value={form.bmsEventCode} onChange={e => set('bmsEventCode', e.target.value)} />
               </div>
             )}
@@ -189,7 +162,7 @@ function AddTrackerModal({ onClose, onAdd }) {
             <p className="step-hint">We'll send Telegram alerts when tickets open.</p>
             <div className="field">
               <label>Telegram Bot Token</label>
-              <input type="password" placeholder="1234567890:AAH..." value={form.telegramToken} onChange={e => set('telegramToken', e.target.value)} />
+              <input type="password" placeholder={isEdit ? '(leave blank to keep existing)' : '1234567890:AAH...'} value={form.telegramToken === '***' ? '' : form.telegramToken} onChange={e => set('telegramToken', e.target.value)} />
             </div>
             <div className="field">
               <label>Your Telegram Chat ID</label>
@@ -206,16 +179,10 @@ function AddTrackerModal({ onClose, onAdd }) {
         <div className="modal-footer">
           {step === 2 && <button className="btn-secondary" onClick={() => setStep(1)}>← Back</button>}
           {step === 1 && <button className="btn-secondary" onClick={onClose}>Cancel</button>}
-          {step === 1 && (
-            <button className="btn-primary" onClick={() => setStep(2)} disabled={!isStep1Valid}>
-              Next →
-            </button>
-          )}
-          {step === 2 && (
-            <button className="btn-primary" onClick={handleSubmit} disabled={!isStep2Valid}>
-              Start Tracking
-            </button>
-          )}
+          {step === 1 && <button className="btn-primary" onClick={() => setStep(2)} disabled={!isStep1Valid}>Next →</button>}
+          {step === 2 && <button className="btn-primary" onClick={() => { onSave(form); onClose(); }} disabled={!isEdit && !isStep2Valid}>
+            {isEdit ? 'Save changes' : 'Start Tracking'}
+          </button>}
         </div>
       </div>
     </div>
@@ -225,39 +192,38 @@ function AddTrackerModal({ onClose, onAdd }) {
 export default function App() {
   const [trackers, setTrackers] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editTracker, setEditTracker] = useState(null);
   const [running, setRunning] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const showToast = (msg, type = 'success') => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const showToast = (msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
   const fetchTrackers = useCallback(async () => {
-    try {
-      const res = await fetch(`${API}/api/trackers`);
-      const data = await res.json();
-      setTrackers(data);
-    } catch { }
+    try { const res = await fetch(`${API}/api/trackers`); setTrackers(await res.json()); } catch {}
   }, []);
 
-  useEffect(() => {
-    fetchTrackers();
-    const iv = setInterval(fetchTrackers, 30000);
-    return () => clearInterval(iv);
-  }, [fetchTrackers]);
+  useEffect(() => { fetchTrackers(); const iv = setInterval(fetchTrackers, 30000); return () => clearInterval(iv); }, [fetchTrackers]);
 
   const addTracker = async (form) => {
     try {
-      const res = await fetch(`${API}/api/trackers`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
+      const res = await fetch(`${API}/api/trackers`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) });
       const data = await res.json();
       setTrackers(t => [data.tracker, ...t]);
       showToast('Tracker started!');
     } catch { showToast('Failed to add tracker', 'error'); }
+  };
+
+  const saveEdit = async (form) => {
+    try {
+      const res = await fetch(`${API}/api/trackers/${editTracker.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      setTrackers(t => t.map(tr => tr.id === editTracker.id ? data.tracker : tr));
+      showToast('Tracker updated!');
+    } catch { showToast('Update failed', 'error'); }
+    setEditTracker(null);
   };
 
   const toggleTracker = async (id) => {
@@ -265,31 +231,20 @@ export default function App() {
       const res = await fetch(`${API}/api/trackers/${id}/toggle`, { method: 'PATCH' });
       const data = await res.json();
       setTrackers(t => t.map(tr => tr.id === id ? { ...tr, active: data.active } : tr));
-    } catch { }
+    } catch {}
   };
 
   const deleteTracker = async (id) => {
-    try {
-      await fetch(`${API}/api/trackers/${id}`, { method: 'DELETE' });
-      setTrackers(t => t.filter(tr => tr.id !== id));
-      showToast('Tracker removed');
-    } catch { }
+    try { await fetch(`${API}/api/trackers/${id}`, { method: 'DELETE' }); setTrackers(t => t.filter(tr => tr.id !== id)); showToast('Tracker removed'); } catch {}
   };
 
   const testTracker = async (id) => {
-    try {
-      await fetch(`${API}/api/trackers/${id}/test`, { method: 'POST' });
-      showToast('Test message sent!');
-    } catch { showToast('Test failed', 'error'); }
+    try { await fetch(`${API}/api/trackers/${id}/test`, { method: 'POST' }); showToast('Test message sent!'); } catch { showToast('Test failed', 'error'); }
   };
 
   const runNow = async () => {
     setRunning(true);
-    try {
-      await fetch(`${API}/api/run-now`, { method: 'POST' });
-      showToast('Check complete!');
-      await fetchTrackers();
-    } catch { showToast('Check failed', 'error'); }
+    try { await fetch(`${API}/api/run-now`, { method: 'POST' }); showToast('Check complete!'); await fetchTrackers(); } catch { showToast('Check failed', 'error'); }
     setRunning(false);
   };
 
@@ -301,10 +256,7 @@ export default function App() {
       <div className="noise" />
       <header className="header">
         <div className="header-left">
-          <div className="logo">
-            <span className="logo-icon">◉</span>
-            <span className="logo-text">CineAlert</span>
-          </div>
+          <div className="logo"><span className="logo-icon">◉</span><span className="logo-text">CineAlert</span></div>
           <p className="tagline">Ticket availability tracker</p>
         </div>
         <div className="header-right">
@@ -328,19 +280,16 @@ export default function App() {
         ) : (
           <div className="tracker-grid">
             {trackers.map(t => (
-              <TrackerCard key={t.id} tracker={t} onToggle={toggleTracker} onDelete={deleteTracker} onTest={testTracker} />
+              <TrackerCard key={t.id} tracker={t} onToggle={toggleTracker} onDelete={deleteTracker} onTest={testTracker} onEdit={(tr) => setEditTracker(tr)} />
             ))}
           </div>
         )}
       </main>
 
-      {showModal && <AddTrackerModal onClose={() => setShowModal(false)} onAdd={addTracker} />}
+      {showModal && <TrackerModal onClose={() => setShowModal(false)} onSave={addTracker} />}
+      {editTracker && <TrackerModal onClose={() => setEditTracker(null)} onSave={saveEdit} editData={editTracker} />}
 
-      {toast && (
-        <div className={`toast ${toast.type}`}>
-          {toast.type === 'success' ? '✓' : '✗'} {toast.msg}
-        </div>
-      )}
+      {toast && <div className={`toast ${toast.type}`}>{toast.type === 'success' ? '✓' : '✗'} {toast.msg}</div>}
     </div>
   );
 }
